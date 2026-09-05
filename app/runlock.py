@@ -16,12 +16,12 @@ class RunLock:
     def __enter__(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.file = self.path.open("a+b")
-        self.file.seek(0)
-        if not self.file.read(1):
-            self.file.write(b"0")
-            self.file.flush()
-        self.file.seek(0)
         try:
+            # Reading a locked byte fails on Windows. Inspect size without reading it.
+            if os.fstat(self.file.fileno()).st_size == 0:
+                self.file.write(b"0")
+                self.file.flush()
+            self.file.seek(0)
             if os.name == "nt":
                 import msvcrt
                 msvcrt.locking(self.file.fileno(), msvcrt.LK_NBLCK, 1)
