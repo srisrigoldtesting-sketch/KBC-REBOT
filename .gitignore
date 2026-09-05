@@ -5,5 +5,10 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+.venv-windows/
+.kbc.lock
+.kbc-env-*
+data/
+*.sqlite3*
+*.zip
 downloads/
-
