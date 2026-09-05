@@ -33,3 +33,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           python -c "import tkinter; from unittest.mock import patch; from app.configure import main; p=patch.object(tkinter.Tk, 'mainloop', lambda window: window.destroy()); p.start(); main()"
+      - name: Windows local parts tools smoke test
+        if: runner.os == 'Windows'
+        run: |
+          python -c "import sys; from unittest.mock import patch; from app.parts_tool import main; p=patch('tkinter.filedialog.askopenfilename', return_value=''); p.start(); sys.argv=['parts','join']; assert main()==0; sys.argv=['parts','split']; assert main()==0"

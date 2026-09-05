@@ -9,7 +9,7 @@ import sys
 import tempfile
 from importlib.metadata import version
 
-from .config import DISK_RESERVE, MAX_FILE_BYTES, ROOT, Settings, SetupError
+from .config import DISK_RESERVE, FREE_UPLOAD_BYTES, MAX_FILE_BYTES, ROOT, Settings, SetupError
 from .main import error_message
 from .runlock import RunLock
 
@@ -20,9 +20,11 @@ async def check(settings, online):
     with tempfile.TemporaryFile(dir=settings.work_dir) as file:
         file.write(b"kbc")
     free = shutil.disk_usage(settings.work_dir).free
-    if free < MAX_FILE_BYTES + DISK_RESERVE:
-        raise SetupError("Free at least 5 GiB on the data drive; 10 GiB free is recommended for setup and 4GB jobs.")
+    if free < FREE_UPLOAD_BYTES + DISK_RESERVE:
+        raise SetupError("Free at least 3 GiB for standard renaming. For 4GB splitting, keep about 7 GiB available; 10 GiB is recommended.")
     print(f"PASS: data folder writable; {free / 1024**3:.1f} GiB available.")
+    if free < MAX_FILE_BYTES + FREE_UPLOAD_BYTES + DISK_RESERVE:
+        print("NOTE: more disk space is needed before splitting a maximum-size input.")
     db = Database(settings.database_url, settings.database_name, settings.work_dir)
     try:
         await db.ping()
@@ -30,18 +32,22 @@ async def check(settings, online):
     finally:
         await db.close()
     if online:
-        from .clients import build_clients, connect_client, disconnect_client, verify_telegram
-        bot, premium = build_clients(settings)
+        from .clients import build_clients, connect_client, disconnect_client, upload_limit_bytes, verify_telegram
+        bot, user = build_clients(settings)
         try:
             async with asyncio.timeout(180):
-                await connect_client(premium)
+                if user is not None:
+                    await connect_client(user)
                 await connect_client(bot, settings.bot_token)
-                await verify_telegram(bot, premium, settings)
-            print(f"PASS: bot @{bot.me.username}, Premium user session, staging and join-channel permissions.")
+                await verify_telegram(bot, user, settings)
+            limit = upload_limit_bytes(user if user is not None else bot)
+            print(f"PASS: bot @{bot.me.username}; {settings.transfer_mode} mode; single-file upload limit {limit // 1024**2} MiB.")
+            if user is None:
+                print("No user session, Premium subscription or staging channel is required in bot mode.")
             print("No test files were sent. Run START.cmd and try a small document, then a larger file.")
         finally:
             await disconnect_client(bot)
-            await disconnect_client(premium)
+            await disconnect_client(user)
 
 
 def main():

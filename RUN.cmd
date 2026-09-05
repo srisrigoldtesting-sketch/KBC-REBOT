@@ -7,6 +7,8 @@ if "%~1"=="start" goto start
 if "%~1"=="configure" goto configure
 if "%~1"=="check" goto check
 if "%~1"=="session" goto session
+if "%~1"=="join" goto join
+if "%~1"=="split" goto split
 if "%~1"=="test" goto test
 echo Use INSTALL.cmd, CONFIGURE.cmd, CHECK.cmd or START.cmd.
 exit /b 1
@@ -24,6 +26,12 @@ goto complete
 goto complete
 :test
 ".venv-windows\Scripts\python.exe" -m unittest discover -s tests -q
+goto complete
+:join
+".venv-windows\Scripts\python.exe" -m app.parts_tool join
+goto complete
+:split
+".venv-windows\Scripts\python.exe" -m app.parts_tool split
 goto complete
 :complete
 set "KBC_EXIT=%errorlevel%"

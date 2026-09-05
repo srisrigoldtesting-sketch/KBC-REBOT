@@ -10,7 +10,8 @@ from .runlock import RunLock
 FIELDS = [
     ("API_ID", "Telegram API ID", False), ("API_HASH", "Telegram API hash", True),
     ("BOT_TOKEN", "Fresh bot token", True), ("ADMIN_ID", "Your Telegram user ID", False),
-    ("STRING_SESSION", "Premium user session", True), ("STAGING_CHAT_ID", "Private staging channel ID", False),
+    ("TRANSFER_MODE", "Transfer mode", False),
+    ("STRING_SESSION", "User session (user mode only)", True), ("STAGING_CHAT_ID", "Staging channel (user mode only)", False),
     ("FORCE_SUB_CHANNEL", "Join channel (optional)", False), ("LOG_CHANNEL_ID", "Log channel ID (optional)", False),
     ("DATABASE_URL", "MongoDB URI (blank = local)", True), ("DATABASE_NAME", "Database name", False),
     ("START_PIC", "Welcome picture URL (optional)", False), ("WORK_DIR", "Local data folder", False),
@@ -50,12 +51,14 @@ def main():
     frame = ttk.Frame(window, padding=18)
     frame.grid(sticky="nsew")
     ttk.Label(frame, text="KBC REBOT", font=("Segoe UI", 18, "bold")).grid(row=0, column=0, columnspan=2, sticky="w")
-    ttk.Label(frame, text="Saved only on this laptop. Keep credentials out of GitHub and chat.\nSave API ID/hash first if you need GENERATE_SESSION.cmd.").grid(row=1, column=0, columnspan=2, sticky="w", pady=(5, 15))
+    ttk.Label(frame, text="Choose bot mode: no Premium, user session or staging channel needed.\nSingle files up to 2000 MiB; /splitrename sends larger files as parts.").grid(row=1, column=0, columnspan=2, sticky="w", pady=(5, 15))
     inputs = {}
     for row, (key, label, secret) in enumerate(FIELDS, start=2):
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", padx=(0, 12), pady=5)
-        variable = tk.StringVar(value=values.get(key, ""))
-        ttk.Entry(frame, textvariable=variable, width=55, show="*" if secret else "").grid(row=row, column=1, sticky="ew", pady=5)
+        variable = tk.StringVar(value=values.get(key, "bot" if key == "TRANSFER_MODE" else ""))
+        widget = (ttk.Combobox(frame, textvariable=variable, values=("bot", "user"), state="readonly", width=52)
+                  if key == "TRANSFER_MODE" else ttk.Entry(frame, textvariable=variable, width=55, show="*" if secret else ""))
+        widget.grid(row=row, column=1, sticky="ew", pady=5)
         inputs[key] = variable
 
     def save():

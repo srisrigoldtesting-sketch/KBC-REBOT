@@ -23,7 +23,7 @@ def fixture_values():
     session = base64.urlsafe_b64encode(struct.pack(">BI?256sQ?", 2, 123456, False, b"x" * 256, 123456, False)).decode().rstrip("=")
     return dict(API_ID="123456", API_HASH="a" * 32, BOT_TOKEN="123456:" + "b" * 35,
                 ADMIN_ID="123456", STRING_SESSION=session, STAGING_CHAT_ID="-1001234567890",
-                DATABASE_URL="", WORK_DIR="data")
+                DATABASE_URL="", WORK_DIR="data", TRANSFER_MODE="user")
 
 
 class ConfigurationTests(unittest.TestCase):
@@ -136,7 +136,8 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             return file_name
 
         self.premium = SimpleNamespace(get_messages=AsyncMock(return_value=self.premium_message),
-                                       download_media=AsyncMock(side_effect=download), send_document=AsyncMock(return_value=SimpleNamespace(id=22)))
+                                       download_media=AsyncMock(side_effect=download), send_document=AsyncMock(return_value=SimpleNamespace(id=22)),
+                                       me=SimpleNamespace(is_bot=False, is_premium=True))
         self.worker = RenameWorker(self.bot, self.premium, self.db, self.settings)
 
     async def asyncTearDown(self):
@@ -268,10 +269,10 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
             await connect_client(client)
         client.authorize.assert_not_awaited()
 
-    async def test_nonpremium_account_rejected_before_channel_calls(self):
+    async def test_bot_session_rejected_before_channel_calls(self):
         from app.clients import verify_telegram
         bot = SimpleNamespace(me=SimpleNamespace(is_bot=True))
-        premium = SimpleNamespace(me=SimpleNamespace(is_bot=False, is_premium=False))
+        premium = SimpleNamespace(me=SimpleNamespace(is_bot=True, is_premium=False))
         with self.assertRaises(SetupError):
             await verify_telegram(bot, premium, Settings.from_values(fixture_values()))
 
@@ -290,6 +291,8 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
         premium = SimpleNamespace(me=SimpleNamespace(is_bot=False, is_premium=True), get_dialogs=dialogs,
                                   get_chat=AsyncMock(return_value=chat), get_chat_member=AsyncMock(return_value=member))
         await verify_telegram(bot, premium, settings)
+        premium.me.is_premium = False
+        await verify_telegram(bot, premium, settings)  # Standard accounts are valid too.
         member.privileges.can_delete_messages = False
         with self.assertRaises(SetupError):
             await verify_telegram(bot, premium, settings)

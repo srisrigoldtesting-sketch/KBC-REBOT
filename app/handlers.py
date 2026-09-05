@@ -12,10 +12,12 @@ def register_handlers(bot, db, worker, settings):
 
     @bot.on_message(filters.private & filters.command(["start", "help"]))
     async def start_handler(_, message):
-        text = ("KBC REBOT — 4GB file renamer\n\n"
+        text = ("KBC REBOT — file renamer\n\n"
                 "Send a document/video/audio, then reply to it with:\n/rename New File Name.ext\n\n"
+                "/splitrename New File Name.ext — larger inputs returned as parts, up to 4000 MiB total.\n"
                 "/status — queue\n/cancel — stop your job\n"
-                "One job per user. Maximum 4000 MiB. Files pass through the operator's laptop and private staging channel.")
+                f"One job per user. Single-file limit: {worker.upload_limit // 1024**2} MiB. Files pass through the operator's laptop. "
+                "Split parts need JOIN_PARTS.cmd before the complete file can be opened.")
         if settings.start_pic:
             try:
                 await message.reply_photo(settings.start_pic, caption=text)
@@ -24,7 +26,7 @@ def register_handlers(bot, db, worker, settings):
                 pass
         await message.reply_text(text)
 
-    @bot.on_message(filters.private & filters.command("rename"))
+    @bot.on_message(filters.private & filters.command(["rename", "splitrename"]))
     async def rename_handler(client, message):
         if not message.from_user:
             return
@@ -37,12 +39,13 @@ def register_handlers(bot, db, worker, settings):
             media = (replied.document or replied.video or replied.audio) if replied else None
             parts = (message.text or "").split(maxsplit=1)
             if not media or len(parts) != 2:
-                await message.reply_text("Reply to a document, video or audio with /rename New Name.ext")
+                await message.reply_text("Reply to a document, video or audio with /rename New Name.ext or /splitrename New Name.ext")
                 return
             suffix = PurePosixPath(media.file_name or "").suffix
             name = safe_filename(parts[1], suffix)
             await db.register_user(user_id)
-            await worker.submit(RenameJob(user_id, message.chat.id, replied.id, name, media.file_size or 0))
+            split = parts[0].split("@", 1)[0].lower() == "/splitrename"
+            await worker.submit(RenameJob(user_id, message.chat.id, replied.id, name, media.file_size or 0, split_output=split))
         except ValueError as exc:
             await message.reply_text(str(exc) if isinstance(exc, SetupError) else "Invalid filename. Avoid Windows reserved names/symbols and keep the name short.")
             return

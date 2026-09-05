@@ -23,7 +23,7 @@ async def generate():
     saved = False
     try:
         await client.connect()
-        phone = getpass.getpass("Your existing Premium account phone number, including +country code (hidden): ").strip()
+        phone = getpass.getpass("Your existing Telegram account phone number, including +country code (hidden): ").strip()
         sent = await client.send_code(phone)
         print("Check Telegram or the delivery method Telegram selected. Enter the code only in this local window.")
         for attempt in range(3):
@@ -41,13 +41,15 @@ async def generate():
                 await client.check_password(getpass.getpass("Telegram two-step verification password (hidden): "))
                 break
         me = await client.get_me()
-        if me.is_bot or not me.is_premium:
-            raise SetupError("This account does not have active Telegram Premium. A Premium user account is required for 4GB uploads.")
+        if me.is_bot:
+            raise SetupError("Use your existing Telegram user account, not a bot.")
         private_values.update(API_ID=str(api_id), API_HASH=api_hash, STRING_SESSION=await client.export_session_string())
         write_values(private_values)
         saved = True
-        print("Premium session saved directly to your private .env. It was not printed or sent to any chat.")
-        print("Run CONFIGURE.cmd to complete the remaining fields, then CHECK.cmd and START.cmd.")
+        print("User session saved directly to your private .env. It was not printed or sent to any chat.")
+        print("Account upload limit: " + ("4000 MiB (Premium)." if me.is_premium else "2000 MiB (standard account)."))
+        print("Session generation does not grant Premium. Bot mode needs no user session.")
+        print("To use this optional session, select user mode in CONFIGURE.cmd and set a private staging channel; then CHECK.cmd and START.cmd.")
     finally:
         if client.is_connected:
             if not saved:

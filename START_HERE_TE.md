@@ -1,19 +1,31 @@
-# KBC REBOT — మీ Windows laptopలో ప్రారంభించండి
+# KBC REBOT — Premium లేకుండా ప్రారంభించండి
 
-1. ZIPని పూర్తిగా **Extract All** చేయండి. చిన్న folder path ఎంచుకోండి, ఉదాహరణకు `C:\KBC-REBOT`.
-2. **INSTALL.cmd**ని double-click చేయండి. Python/dependencies install చేసి local tests నడుపుతుంది. Internet అవసరం. WinGet అందుబాటులో లేకపోతే official Python download సూచన చూపిస్తుంది.
-3. తెరుచుకున్న settings windowలో మీ API ID, API hash, **కొత్త bot token**, Admin ID, private channel ID నమోదు చేసి **Save settings** నొక్కండి. ఒక్క token మాత్రమే paste చేయండి; `< >` పెట్టవద్దు.
-4. కొత్త Premium session కావాలంటే API ID/hash save చేసి window మూసేయండి. **GENERATE_SESSION.cmd** తెరవండి. మీ Telegram phone number, login code, two-step password అడిగితే ఆ laptop windowలోనే నమోదు చేయండి. Session నేరుగా private settingsలో save అవుతుంది.
-5. Telegramలో private broadcast channelలో bot, Premium account రెండింటినీ adminsగా చేర్చండి. రెండింటికీ **Post Messages**, **Delete Messages** permissions ఇవ్వండి. Protected content ఆపండి. ఆ channel `-100...` IDని settingsలో పెట్టండి.
-6. **CHECK.cmd** నడపండి. ఏ setting సరిచేయాలో చూపిస్తే **CONFIGURE.cmd**లో సరిచేసి మళ్లీ CHECK చేయండి.
-7. **START.cmd** తెరిచి ఉంచండి. Bot running అని వచ్చిన తర్వాత Telegramలో `/start` పంపండి. చిన్న document పంపి, దానికి replyగా `/rename New Name.pdf` పంపండి. అది పనిచేసిన తర్వాత పెద్ద file పరీక్షించండి.
+**ఈ కొత్త versionలో STRING_SESSION అవసరం లేదు.** సాధారణ bot modeలో phone number/OTP ఇవ్వాల్సిన అవసరం కూడా లేదు. ఒక్క file‌గా 2000 MiB వరకు rename చేసి పంపుతుంది. పెద్ద files‌ను భాగాలుగా పంపి, laptopలో మళ్లీ కలపవచ్చు.
 
-**MongoDB అవసరం లేదు:** DATABASE_URL ఖాళీగా ఉంచితే laptopలో local database వాడుతుంది. FORCE_SUB_CHANNEL కూడా optional; bot usernameని channel స్థానంలో పెట్టవద్దు.
+1. పాత **START** windowని Ctrl+Cతో ఆపండి. పాత **CONFIGURE** window కూడా మూసేయండి.
+2. కొత్త ZIPని పూర్తిగా **Extract All** చేయండి. ఉదాహరణకు `C:\KBC-REBOT` వంటి చిన్న folder path వాడండి.
+3. **INSTALL.cmd** తెరవండి. మీ పాత `.env` settings వాడాలంటే దాన్ని కొత్త folderకి laptopలోనే copy చేయవచ్చు; chat/GitHubకి పంపవద్దు.
+4. Settingsలో **Transfer mode = bot** ఎంచుకోండి. API_ID, API_HASH, BOT_TOKEN, ADMIN_ID నమోదు చేయండి. **STRING_SESSION**, **STAGING_CHAT_ID** ఖాళీగా ఉంచండి. Bot modeలో ఈ రెండింటిలో పాత తప్పు values ఉన్నా వాటిని ఉపయోగించదు.
+5. MongoDB అవసరం లేకపోతే DATABASE_URL ఖాళీగా ఉంచండి. Channel features అవసరం లేకపోతే FORCE_SUB_CHANNEL, LOG_CHANNEL_ID కూడా ఖాళీగా ఉంచండి. Save చేసి window మూసేయండి.
+6. **CHECK.cmd** నడపండి. Checks పాస్ అయితే **START.cmd** తెరిచి ఉంచండి.
+7. Telegramలో `/start` పంపి, చిన్న document పంపండి. దానికి replyగా `/rename New Name.pdf` పంపండి.
 
-**మీ laptop ఆన్‌లో, charger మరియు internetతో ఉండాలి.** START నడిచేంతవరకు idle sleepని తాత్కాలికంగా ఆపుతుంది; lid మూసేయడం/manual sleep/shutdown చేస్తే bot ఆగుతుంది. Ctrl+Cతో ఆపండి. Laptop restart తర్వాత START మళ్లీ తెరవండి.
+## పెద్ద file ఇప్పటికే Telegramలో ఉంటే
 
-ఇది hosting bill లేని local setup. Telegram Premium, internet, electricity ఖర్చులు వేరు. 4GBకి active Premium user account అవసరం. గరిష్ఠ పరిమితి 4000 MiB; కనీసం 5 GiB ఖాళీ disk అవసరం, 10 GiB ఉంచడం మంచిది.
+Forward చేయడానికి అనుమతి ఉన్న fileని botకి forward చేయండి. దానికి replyగా `/splitrename New Name.mp4` పంపండి. 4000 MiB వరకు inputని తీసుకుని, ఒక్కో భాగం 2000 MiB మించకుండా పంపుతుంది. చివరలో `.kbc-parts.json` file కూడా పంపుతుంది.
 
-ముందు chatలో పెట్టిన token/session/passwordలను తిరిగి వాడవద్దు. కొత్తవి laptopలోనే నమోదు చేయండి. `.env`ని GitHubకి, ZIPలోకి లేదా chatకి పంపవద్దు. GitHubలో పెట్టిన variables మీ laptopకి ఆటోమేటిక్‌గా రావు.
+**అన్ని భాగాలు మరియు JSON fileని ఒకే folderలో download చేయండి. పేర్లు మార్చవద్దు. JOIN_PARTS.cmd తెరిచి JSON fileని ఎంచుకోండి.** అది భాగాలను తనిఖీ చేసి పూర్తి renamed fileని తయారు చేస్తుంది. భాగాలు విడిగా videoలా play కావు. మధ్యలో job ఆగితే అసంపూర్ణ భాగాలను తొలగించి మళ్లీ ప్రయత్నించండి; వేర్వేరు attempts భాగాలు కలపవద్దు.
 
-CHECKకి ముందు పాత START window మూసేయండి. ఒక userకి ఒక job మాత్రమే. `/status`తో చూడవచ్చు; `/cancel`తో ఆపవచ్చు. Power/internet సమస్య తర్వాత jobని మళ్లీ పంపాలి.
+## పెద్ద file మీ laptopలో మాత్రమే ఉంటే
+
+Premium లేకుండా ఆ 4GB fileని Telegramకి ఒక్క file‌గా upload చేయలేరు. **SPLIT_LOCAL.cmd** తెరిచి fileని ఎంచుకుని చివరకు కావలసిన కొత్త పేరు ఇవ్వండి. కొత్త folderలో parts మరియు JSON సిద్ధమవుతాయి. వాటిని Telegramలో వేర్వేరుగా పంపండి. అందుకున్నవారు JOIN_PARTSతో పూర్తి fileని తిరిగి పొందవచ్చు. మీ original file అలాగే ఉంటుంది.
+
+ఇది ఒకే 4GB Telegram upload కాదు: చిన్న భాగాలుగా పంపి, తరువాత కలిపే విధానం. `4GB` అనే advertised tierకి ఈ library పరిమితి 4000 MiB; ఖచ్చితమైన 4 GiB file దీని కంటే పెద్దది.
+
+## Session గురించి
+
+**GENERATE_SESSION.cmd ఇప్పుడు optional.** సాధారణ Telegram accountతో కూడా session తయారు చేయవచ్చు. Session తయారు చేసినంత మాత్రాన Premium రాదు. ప్రత్యేకంగా user mode ఎంచుకుంటేనే session మరియు private staging channel అవసరం. మీకు ప్రస్తుతం **bot mode** సరిపోతుంది.
+
+Laptop charger/internetతో ఆన్‌లో ఉండాలి; START window తెరిచి ఉంచండి. సాధారణ renamingకి సుమారు 3 GiB, పెద్ద split jobsకి సుమారు 7 GiB ఖాళీ అవసరం; 10 GiB ఉంచడం మంచిది. Telegramలో bot స్పందిస్తుందో చిన్న fileతో ముందుగా పరీక్షించండి. మీ laptop/accountతో live transfer ఇక్కడి నుంచి పరీక్షించలేదు.
+
+Token, API hash, session, OTP లేదా passwordsని chat/GitHubకి పంపవద్దు. ముందుగా బయటపడిన token/sessionలను తిరిగి వాడవద్దు.

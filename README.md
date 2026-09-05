@@ -1,91 +1,90 @@
-# KBC REBOT — Windows 4GB file renamer
+# KBC REBOT — file renaming without Premium
 
-A Telegram bot with a separate Premium user client for large-file transfers. Inspired by [JishuDeveloper/Rename-Bot-4GB](https://github.com/JishuDeveloper/Rename-Bot-4GB); the original MIT attribution is preserved in LICENSE.
+**Default bot mode needs no Telegram Premium, user session, phone login or staging channel.** It uses your Telegram app API ID/hash and bot token over MTProto. Standard renaming returns a single file up to **2000 MiB**. For larger inputs already in Telegram, `/splitrename` returns smaller parts; `JOIN_PARTS.cmd` restores the complete renamed file locally.
 
-## Start on your Windows laptop
+Telegram limits normal uploads to its 2GB tier and Premium uploads to its 4GB tier. A session string does not grant Premium. This project cannot upload a single 4GB file from a non-Premium identity. Splitting changes the output into separate files; it does not raise that limit.
 
-1. Extract the ZIP to a short writable folder, for example `C:\KBC-REBOT`. Do not run files from inside the ZIP.
-2. Double-click **INSTALL.cmd**. It finds Python 3.12/3.13 64-bit or installs Python 3.13 for your user through Microsoft WinGet, installs the pinned dependencies, and runs the offline tests. No Docker, SSH, rented VM or administrator terminal is required. If WinGet is unavailable, the script gives the official Python download link.
-3. The local settings window opens. Enter the credentials there and press **Save settings**. Save partial settings if necessary; reopen **CONFIGURE.cmd** later. Credentials are stored in the private `.env` beside the scripts.
-4. If you need a new Premium session, save your API ID/hash, close the settings window, then run **GENERATE_SESSION.cmd**. Enter your own phone number, login code and two-step verification password only in that local console. The session is saved directly; it is never printed or sent to a chat.
-5. In Telegram, create a **private broadcast channel**, add the bot and Premium user account as admins, and allow **Post Messages** and **Delete Messages** for both. Turn off protected content for that staging channel. Save its `-100...` ID as `STAGING_CHAT_ID`. The prefilled ID is from your configuration and still needs to belong to the channel you control.
-6. Stop any existing copy of the bot, then run **CHECK.cmd**. It checks configuration, disk, database, bot login, Premium status and channel permissions without uploading test files.
-7. Run **START.cmd**. When the console says the bot is running, open the bot in Telegram, send `/start`, send a small document, and reply `/rename My New Name.pdf`. After that succeeds, test a larger file.
+Inspired by [JishuDeveloper/Rename-Bot-4GB](https://github.com/JishuDeveloper/Rename-Bot-4GB). Original MIT attribution is preserved in LICENSE.
 
-Keep the laptop connected to power and the internet, with START open. Automatic idle sleep is prevented while START runs and restored when it exits; closing the lid or manually sleeping/shutting down still stops service. Press Ctrl+C to stop cleanly. Run START again after a reboot. This is local hosting with no hosting subscription; electricity, internet and Telegram Premium are separate costs. No cloud provider or uptime is promised.
+## Update an earlier installation
 
-See [START_HERE_TE.md](START_HERE_TE.md) for Telugu instructions.
+1. Stop the old START window with Ctrl+C and close the old CONFIGURE window.
+2. Extract the updated ZIP into a new short folder, such as `C:\KBC-REBOT`. Do not run from inside the ZIP.
+3. If you want to reuse private settings, copy your old `.env` into the new folder **locally only**. Do not upload it. The new ZIP contains no credentials.
+4. Run **INSTALL.cmd**. In the settings window choose **Transfer mode: bot**. API_ID, API_HASH, BOT_TOKEN and ADMIN_ID are the required settings. Leave STRING_SESSION and STAGING_CHAT_ID blank; bot mode also ignores old invalid values in those two fields.
+5. Leave DATABASE_URL blank for SQLite. FORCE_SUB_CHANNEL and LOG_CHANNEL_ID are optional; leave them blank if you do not use channels. Save, close settings, run **CHECK.cmd**, then **START.cmd**.
 
-## Requirements and file limits
+The installer finds Python 3.12/3.13 64-bit or attempts a user-only Python 3.13 install through Microsoft WinGet. It installs dependencies and runs offline tests. If WinGet is unavailable, it gives the official Python download link. No Docker, SSH, cloud account or administrator terminal is needed for bot mode.
 
-- Windows 10/11 x64; Python 3.12 or 3.13 with pip and tkinter.
-- An existing Telegram bot and an account with **active Telegram Premium** for the transfer client.
-- At least 5 GiB free on the data drive; 10 GiB free and 4 GB system RAM are practical starting points. Other apps and network conditions affect performance.
-- This pinned library supports up to **4000 MiB (4,194,304,000 bytes)** for Premium uploads. This is Telegram's advertised 4GB tier, not an exact 4 GiB file (4,294,967,296 bytes). Larger files are rejected before downloading.
-- Transfers stream to disk. Files return as documents; contents are not transcoded. Documents, videos and audio are accepted.
+## Rename a normal file
+
+1. Open the bot in Telegram and send `/start`.
+2. Send a small document, video or audio.
+3. Reply to that message with `/rename New Name.ext`.
+4. The bot downloads, renames and uploads the document directly, without a user session or staging channel.
+
+Start with a small file to confirm your token and connection work. Free mode supports one returned file up to 2000 MiB (2,097,152,000 bytes). Use a short Windows-safe filename. Files are returned as documents; content is not transcoded.
+
+## Handle larger files without Premium
+
+**If the original large file is already in Telegram:** forward it to your bot, provided forwarding is allowed. Reply `/splitrename New Name.ext`. The bot accepts input up to 4000 MiB (4,194,304,000 bytes), downloads it and returns parts of at most 2000 MiB plus a small `.kbc-parts.json` manifest. For a maximum-size input there are two parts. Smaller files sent to `/splitrename` can still return as one file if they fit the selected account's limit.
+
+Download **all parts and the manifest into the same folder**, keeping their original filenames. Run **JOIN_PARTS.cmd**, select the manifest, and wait. The tool checks part sizes and SHA-256 checksums and produces the complete file with the requested name. Parts are plain binary pieces, not independently playable videos and not ZIP archives. The joiner preserves the parts and refuses to overwrite an existing output file. Checksums detect corruption; they do not authenticate who supplied a manifest.
+
+**If the large file exists only on your laptop:** a free Telegram account cannot initially upload it as one 4GB file. Run **SPLIT_LOCAL.cmd**, select the file, and enter the desired final filename. It creates a new folder with parts and a manifest beside the original. Send those files through Telegram separately. The recipient joins them with JOIN_PARTS. The original local file is preserved. This route is local splitting and renaming, not a single-file 4GB Telegram upload.
+
+Do not mix parts from different attempts. If a job fails or is cancelled after some parts arrive, discard that incomplete set and retry. Only a completed set with the final manifest can be reliably joined. Receiving a manifest is not a substitute for checksum verification.
+
+## Optional user sessions
+
+Most users should keep `TRANSFER_MODE=bot`. **GENERATE_SESSION.cmd is optional.** It now accepts both normal and Premium Telegram user accounts.
+
+To use a user identity, save API_ID/API_HASH in CONFIGURE, close that window, and run GENERATE_SESSION. Enter your own phone number, login code and optional two-step password only in that local console. Hidden typing is normal. The session is written directly into the private `.env`, never printed or sent to a chat. A standard session allows 2000 MiB uploads; an account with active Premium allows 4000 MiB.
+
+Then choose `TRANSFER_MODE=user`, set STAGING_CHAT_ID to a private broadcast channel, and add both identities as admins with Post Messages and Delete Messages permissions. Turn off protected content there. CHECK validates permissions. Generating a session does not automatically change transfer mode or subscribe your account to Premium.
 
 ## Settings
 
 | Variable | Purpose |
 |---|---|
-| `API_ID`, `API_HASH` | Telegram app credentials from your account at [my.telegram.org](https://my.telegram.org) |
-| `BOT_TOKEN` | One fresh token from BotFather, no angle brackets or duplicated copies |
-| `ADMIN_ID` | Your numeric Telegram ID; restricts `/admin` |
-| `STRING_SESSION` | A production Pyrogram/Pyrofork user session with active Premium |
-| `STAGING_CHAT_ID` | Private broadcast channel shared by both clients |
-| `FORCE_SUB_CHANNEL` | Optional channel/group users must join; bot must be an admin there. Blank disables it. A bot username cannot be used as a subscription channel. |
-| `LOG_CHANNEL_ID` | Optional destination for error classes and job IDs; blank disables it |
-| `DATABASE_URL` | Optional MongoDB URI; **blank uses free local SQLite** |
-| `DATABASE_NAME` | Mongo database name, default `cluster0` |
-| `WORK_DIR` | Data location, default `data` beside the code |
-| `START_PIC` | Optional welcome image; bot falls back to text if it fails |
-| `MAX_CONCURRENT_JOBS` | `1` for the laptop edition |
+| `API_ID`, `API_HASH` | Your app credentials from [my.telegram.org](https://my.telegram.org) |
+| `BOT_TOKEN` | One fresh bot token from BotFather; no angle brackets or duplicate copies |
+| `ADMIN_ID` | Your numeric Telegram ID; only `/admin` is restricted to it |
+| `TRANSFER_MODE` | `bot` by default; optional `user` mode enables the second identity |
+| `STRING_SESSION` | Used only in user mode; normal and Premium user sessions accepted |
+| `STAGING_CHAT_ID` | Required only in user mode; private broadcast channel shared by both identities |
+| `FORCE_SUB_CHANNEL` | Optional channel/group users must join; bot must be admin. A bot username is not a subscription channel. |
+| `LOG_CHANNEL_ID` | Optional destination for job IDs and error classes |
+| `DATABASE_URL` | Blank uses local SQLite; optional MongoDB URI |
+| `DATABASE_NAME` | MongoDB name, default `cluster0` |
+| `WORK_DIR` | Data folder, default `data` beside the code |
+| `START_PIC` | Optional welcome image; text fallback if it fails |
+| `MAX_CONCURRENT_JOBS` | `1` in the laptop edition |
 
-Legacy `ADMIN`, `FORCE_SUBS`, and `LOG_CHANNEL` are accepted when their newer names are absent. Runtime environment variables override `.env`; the local settings window edits the file only. GitHub Actions secrets are not automatically available on your laptop. Never commit `.env` to GitHub or include it in a ZIP you share.
+Runtime environment variables override the private `.env`. GitHub secrets are not automatically copied to a laptop. Old `ADMIN`, `FORCE_SUBS` and `LOG_CHANNEL` aliases work when their newer names are absent. No built-in secret values are supplied. Replace previously disclosed bot tokens and revoke exposed Telegram sessions; rotate an exposed MongoDB password if still using that database. Never paste replacements into chat or public source files.
 
-The supplied example includes only non-secret IDs/settings. Join checking starts disabled because the previously supplied username has not been verified as a channel. If you want it, set a real channel and CHECK will validate access. The database URI starts blank so SQLite works without an external service.
+## Running and storage
 
-The earlier credentials were disclosed in chat. Replace the bot token through BotFather, terminate the exposed Telegram user session under Settings > Devices, and generate a new session locally. Rotate the disclosed MongoDB password if that database is still in use. Do not paste replacements into chat.
+Use Windows 10/11 x64 with Python 3.12/3.13, pip and tkinter. Keep about 3 GiB free for standard 2GB renaming. A maximum-size split job needs about 7 GiB free while downloading and creating one part at a time; 10 GiB is recommended. Local splitting needs free space for another full copy plus a reserve, and joining needs space for the restored file. Disk capacity is checked before processing; other programs can still consume free space afterward.
 
-## Commands and behavior
+Keep the laptop powered, connected to the internet and START open. The running bot temporarily prevents idle sleep; manual sleep, lid closure, power loss or shutdown still interrupt service. Run START again after a reboot. Local hosting has no hosting subscription; electricity/internet are separate costs. Premium is optional and only needed for a single returned file above the normal account limit.
 
-- `/start` or `/help`: usage instructions.
-- `/rename New Name.ext`: reply to a document, video or audio.
-- `/status`: your job ID and queue counts.
-- `/cancel`: cancel your queued/active job.
-- `/admin`: metadata counts, only for `ADMIN_ID`.
+One job per user, one active transfer, and at most ten waiting jobs. `/status` shows queue counts, `/cancel` stops your own job, and `/admin` shows metadata counts for ADMIN_ID. Anyone who can reach the bot may use it, subject to optional subscription checking; ADMIN_ID does not make all commands owner-only.
 
-One job per user, one active transfer and at most ten waiting jobs. Each job has its own temporary directory so identical names cannot collide. The worker re-fetches the staged source with the Premium identity, checks downloaded size, and copies the result back using the bot. Telegram rate limits get bounded retries; a transfer, notification or metadata failure does not intentionally stop the queue.
+Temporary files are cleaned up after completion, exceptions and cooperative cancellation. User-mode staging messages are deleted where possible. Network failure, forced termination or lost channel rights may leave messages for the channel owner to remove. The app removes old temporary job folders at the next start; do not put personal files in `data/jobs`. The in-memory queue is not resumed after a restart. Metadata stays in SQLite/MongoDB until removed. `/cancel` does not retract files already delivered.
 
-Temporary files and the two staging messages are cleaned up after each job where possible. A power cut, forced process termination, lost connection or revoked delete permission can leave staging messages; the channel owner should remove those. Interrupted local job directories are removed at the next start. Job metadata (user IDs, filenames, status, timestamps and error class) stays in SQLite/MongoDB until you remove it. The queue is not durable: after a restart, resend interrupted jobs. `/cancel` cannot retract a file already delivered.
+## Verification and development
 
-Any Telegram user who can reach the bot may use `/rename` (subject to optional join checking). `ADMIN_ID` only restricts `/admin`. Do not publish the bot widely unless your laptop bandwidth and disk can support that usage.
+Run `python -m unittest discover -s tests -v`. Tests cover bot-only transfers, normal/Premium account limits, standard session generation, split/join byte integrity, corruption detection, filename safety, overwrite prevention, Windows cleanup on cancellation, and queue recovery. GitHub Actions runs Linux and Windows with Python 3.12/3.13 and checks Windows installation/settings startup. Telegram clients are mocked in transfer tests: only a live CHECK and file trial on your host can confirm your account and network work together.
 
-## Troubleshooting
+For Linux/Docker, supply the same settings at runtime and run `python -m app.main`; desktop split/join dialogs are intended for Windows. `.env` is excluded from the Docker context. The code uses Telegram MTProto directly, so the hosted HTTP Bot API's media limits are not the interface used here.
 
-| Message/problem | Action |
-|---|---|
-| Missing or malformed setting | Open CONFIGURE, paste each value once, save and run CHECK |
-| Premium/session error | Stop other copies; use an active Premium account and generate a fresh session locally |
-| Channel/private/peer error | Correct the channel ID; both accounts must join and have the required admin permissions |
-| Membership check fails | Use a real channel/group, make the bot admin, or leave FORCE_SUB_CHANNEL blank |
-| MongoDB unavailable | Check URI/network access, or leave DATABASE_URL blank for SQLite |
-| Already running | Stop the old START window; do not launch concurrent copies with the same session |
-| Network interruption/FloodWait | Restore the connection, allow Telegram's rate limit to expire, and retry |
-| No disk space | Free space on the WORK_DIR drive; do not put your own documents in data/jobs |
-| Filename rejected | Use a short filename without Windows reserved names, slashes or forbidden symbols |
+Read [START_HERE_TE.md](START_HERE_TE.md) for Telugu steps and [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for code-level details.
 
-## Developers
+## Primary references
 
-`python -m unittest discover -s tests -v` runs credential-free tests using fake Telegram clients and real local SQLite. GitHub Actions is configured for Linux and Windows, Python 3.12 and 3.13, with a Windows launcher/settings smoke test. These tests do not prove a live 4GB transfer or validate your account credentials; CHECK and the real small/large file trial are required on the host.
-
-For Linux/Docker, provide settings as environment variables (or a private local `.env` when running Python directly) and run `python -m app.main`. The Docker image does not contain `.env`; use `docker run --env-file .env ...` with persistent storage if needed. The Windows launchers are the intended route for this package.
-
-Read [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for the code-level authentication and request flow.
-
-## Dependency references
-
-- [Pyrofork 2.3.69](https://pypi.org/project/pyrofork/2.3.69/) and [its upload implementation](https://github.com/Mayuri-Chan/pyrofork/blob/v2.3.69/pyrogram/methods/advanced/save_file.py). Imports retain the `pyrogram` name; the original Pyrogram project is archived.
-- [TgCrypto-pyrofork Windows wheels](https://pypi.org/project/TgCrypto-pyrofork/1.2.8/).
-- [Telegram file transfer limits](https://core.telegram.org/api/files).
-- [Microsoft WinGet installation options](https://learn.microsoft.com/en-us/windows/package-manager/winget/install).
+- [Telegram FAQ: normal 2GB and Premium 4GB file tiers](https://telegram.org/faq).
+- [Telegram Premium FAQ: everyone can download Premium-uploaded files](https://telegram.org/faq_premium).
+- [Pyrofork 2.3.69 upload implementation: 2000/4000 MiB](https://github.com/Mayuri-Chan/pyrofork/blob/v2.3.69/pyrogram/methods/advanced/save_file.py).
+- [Pyrofork package](https://pypi.org/project/pyrofork/2.3.69/) and [Windows crypto wheels](https://pypi.org/project/TgCrypto-pyrofork/1.2.8/).
+- [Microsoft WinGet options](https://learn.microsoft.com/en-us/windows/package-manager/winget/install).

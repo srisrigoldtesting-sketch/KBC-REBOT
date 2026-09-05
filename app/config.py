@@ -13,6 +13,7 @@ from dotenv import dotenv_values
 ROOT = Path(__file__).resolve().parents[1]
 ENV_FILE = ROOT / ".env"
 MAX_FILE_BYTES = 4000 * 1024 * 1024  # Pyrofork Premium limit: 4000 MiB.
+FREE_UPLOAD_BYTES = 2000 * 1024 * 1024
 DISK_RESERVE = 1024 * 1024 * 1024
 
 
@@ -61,7 +62,7 @@ class Settings:
     bot_token: str = field(repr=False)
     admin_id: int
     string_session: str = field(repr=False)
-    staging_chat_id: int
+    staging_chat_id: int | None
     work_dir: Path
     force_sub_channel: str | int | None = None
     log_channel_id: int | None = None
@@ -69,6 +70,7 @@ class Settings:
     database_name: str = "cluster0"
     start_pic: str | None = None
     max_concurrent_jobs: int = 1
+    transfer_mode: str = "bot"
 
     @classmethod
     def from_values(cls, source: Mapping[str, str], root: Path = ROOT) -> "Settings":
@@ -80,19 +82,23 @@ class Settings:
         token = required(values, "BOT_TOKEN")
         if not re.fullmatch(r"[0-9]{5,15}:[A-Za-z0-9_-]{35}", token):
             raise SetupError("BOT_TOKEN must be ONE token from BotFather, without < >, spaces or repeated copies.")
-        session = required(values, "STRING_SESSION")
-        validate_session(session)
+        mode = (values.get("TRANSFER_MODE") or "bot").lower()
+        if mode not in ("bot", "user"):
+            raise SetupError("TRANSFER_MODE must be bot (no session required) or user (optional account session).")
+        session = required(values, "STRING_SESSION") if mode == "user" else ""
+        if session:
+            validate_session(session)
         try:
             admin = int(required(values, "ADMIN_ID"))
-            staging = int(required(values, "STAGING_CHAT_ID"))
+            staging = int(required(values, "STAGING_CHAT_ID")) if mode == "user" else None
             log = int(values["LOG_CHANNEL_ID"]) if values.get("LOG_CHANNEL_ID") else None
             concurrency = int(values.get("MAX_CONCURRENT_JOBS") or "1")
         except ValueError as exc:
             if isinstance(exc, SetupError):
                 raise
             raise SetupError("ADMIN_ID, STAGING_CHAT_ID, LOG_CHANNEL_ID and MAX_CONCURRENT_JOBS must be numbers.") from None
-        if admin <= 0 or staging >= -1000000000000 or (log is not None and log >= 0):
-            raise SetupError("Use your positive ADMIN_ID and a private channel STAGING_CHAT_ID starting with -100.")
+        if admin <= 0 or (staging is not None and staging >= -1000000000000) or (log is not None and log >= 0):
+            raise SetupError("Use a positive ADMIN_ID. In user mode, STAGING_CHAT_ID must be a private channel ID starting with -100.")
         if concurrency != 1:
             raise SetupError("Set MAX_CONCURRENT_JOBS=1 for this laptop edition.")
         database_url = values.get("DATABASE_URL", "")
@@ -110,7 +116,7 @@ class Settings:
         return cls(api_id=api_id, api_hash=api_hash, bot_token=token, admin_id=admin,
                    string_session=session, staging_chat_id=staging, work_dir=work_dir.resolve(),
                    force_sub_channel=force, log_channel_id=log, database_url=database_url,
-                   database_name=database_name, start_pic=values.get("START_PIC") or None)
+                   database_name=database_name, start_pic=values.get("START_PIC") or None, transfer_mode=mode)
 
     @classmethod
     def load(cls) -> "Settings":
