@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+from io import BytesIO
 from pathlib import PurePosixPath
 
 from .config import SetupError
 from .security import is_subscribed, safe_filename
 from .worker import RenameJob
+from .thumbnails import MAX_PHOTO_BYTES, normalize_thumbnail
 
 
 def register_handlers(bot, db, worker, settings):
@@ -15,6 +18,7 @@ def register_handlers(bot, db, worker, settings):
         text = ("KBC REBOT — file renamer\n\n"
                 "Send a document/video/audio, then reply to it with:\n/rename New File Name.ext\n\n"
                 "/splitrename New File Name.ext — larger inputs returned as parts, up to 4000 MiB total.\n"
+                "/setthumb — reply to a photo to save your thumbnail\n/viewthumb — show it\n/delthumb — remove it\n"
                 "/status — queue\n/cancel — stop your job\n"
                 f"One job per user. Single-file limit: {worker.upload_limit // 1024**2} MiB. Files pass through the operator's laptop. "
                 "Split parts need JOIN_PARTS.cmd before the complete file can be opened.")
@@ -53,6 +57,49 @@ def register_handlers(bot, db, worker, settings):
             await message.reply_text("Unable to queue this file. The admin should run CHECK.cmd on the bot laptop.")
             return
         await message.reply_text("Added to the rename queue. Use /cancel to stop your job.")
+
+    @bot.on_message(filters.private & filters.command(["setthumb", "viewthumb", "delthumb"]))
+    async def thumbnail_handler(client, message):
+        if not message.from_user:
+            return
+        user_id = message.from_user.id
+        command = (message.text or message.caption or "").split()[0].split("@", 1)[0].lower()
+        try:
+            if not await is_subscribed(client, settings.force_sub_channel, user_id):
+                await message.reply_text(f"Join {settings.force_sub_channel}, then try again.")
+                return
+            if command == "/delthumb":
+                await db.delete_thumbnail(user_id)
+                await message.reply_text("Your thumbnail was removed. Future jobs will use Telegram's default preview.")
+            elif command == "/viewthumb":
+                jpeg = await db.get_thumbnail(user_id)
+                if jpeg is None:
+                    await message.reply_text("No thumbnail saved. Send a photo, then reply to it with /setthumb.")
+                    return
+                with BytesIO(jpeg) as photo:
+                    photo.name = "thumbnail.jpg"
+                    await message.reply_photo(photo, caption="Your saved thumbnail.")
+            else:
+                source = message if message.photo else message.reply_to_message
+                if not source or not source.photo:
+                    await message.reply_text("Send an image as a PHOTO, then reply to that photo with /setthumb.")
+                    return
+                if not source.photo.file_size or source.photo.file_size > MAX_PHOTO_BYTES:
+                    raise SetupError("Send a photo smaller than 10 MiB.")
+                async with asyncio.timeout(60):
+                    downloaded = await client.download_media(source, in_memory=True)
+                if downloaded is None:
+                    raise SetupError("Photo download failed. Try /setthumb again.")
+                try:
+                    jpeg = await asyncio.to_thread(normalize_thumbnail, downloaded.read(MAX_PHOTO_BYTES + 1))
+                finally:
+                    downloaded.close()
+                await db.set_thumbnail(user_id, jpeg)
+                await message.reply_text("Thumbnail saved! It will be attached automatically to your next renamed files. Use /viewthumb or /delthumb.")
+        except SetupError as exc:
+            await message.reply_text(str(exc))
+        except Exception:
+            await message.reply_text("Could not update or show your thumbnail. Try again; if it continues, ask the admin to run CHECK.cmd.")
 
     @bot.on_message(filters.private & filters.command("status"))
     async def status_handler(_, message):

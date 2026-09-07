@@ -88,3 +88,31 @@ Read [START_HERE_TE.md](START_HERE_TE.md) for Telugu steps and [docs/AUTHENTICAT
 - [Pyrofork 2.3.69 upload implementation: 2000/4000 MiB](https://github.com/Mayuri-Chan/pyrofork/blob/v2.3.69/pyrogram/methods/advanced/save_file.py).
 - [Pyrofork package](https://pypi.org/project/pyrofork/2.3.69/) and [Windows crypto wheels](https://pypi.org/project/TgCrypto-pyrofork/1.2.8/).
 - [Microsoft WinGet options](https://learn.microsoft.com/en-us/windows/package-manager/winget/install).
+
+## Saved thumbnails and transfer speed
+
+Send your preferred picture to the bot **as a photo**, reply to it with `/setthumb`,
+then rename files as usual. `/viewthumb` shows your saved thumbnail; `/delthumb`
+removes it. Sending a photo with `/setthumb` as its caption also works.
+Each Telegram user has a separate thumbnail, saved across restarts in the local
+`data/metadata.sqlite3` database (or the configured MongoDB database). A job uses
+the thumbnail saved when that job starts. Replacing/removing it affects later jobs.
+
+Pictures are converted to a metadata-free JPEG, at most 320×320 pixels and under
+200 kB. The bot freshly uploads your thumbnail with each renamed file and each
+split part; the join manifest has no custom thumbnail. Telegram controls whether
+it displays a custom preview for a particular file type. This changes the Telegram
+preview, not embedded cover art inside the original file.
+
+Transfers now display bytes, average MiB/s and an estimated time remaining for each
+download/upload phase. Status edits run in a separate task: a slow Telegram edit
+or edit rate limit no longer pauses the transfer callback. This does not remove
+Telegram limits or increase your laptop's internet bandwidth. Every rename still
+requires downloading and uploading the entire file; upload speed is often the
+limiting factor. Keep the laptop awake and connected, and avoid competing uploads.
+
+To update an existing Windows installation: stop START.cmd with Ctrl+C, back up
+`.env` and the `data` folder, extract the new code over the existing bot folder,
+keep those private settings/data, run INSTALL.cmd to install the added Pillow
+dependency, then run START.cmd. Do not run two copies at once. For a custom
+WORK_DIR, preserve that directory instead of the default data folder.

@@ -29,3 +29,20 @@ Premium లేకుండా ఆ 4GB fileని Telegramకి ఒక్క fil
 Laptop charger/internetతో ఆన్‌లో ఉండాలి; START window తెరిచి ఉంచండి. సాధారణ renamingకి సుమారు 3 GiB, పెద్ద split jobsకి సుమారు 7 GiB ఖాళీ అవసరం; 10 GiB ఉంచడం మంచిది. Telegramలో bot స్పందిస్తుందో చిన్న fileతో ముందుగా పరీక్షించండి. మీ laptop/accountతో live transfer ఇక్కడి నుంచి పరీక్షించలేదు.
 
 Token, API hash, session, OTP లేదా passwordsని chat/GitHubకి పంపవద్దు. ముందుగా బయటపడిన token/sessionలను తిరిగి వాడవద్దు.
+
+## Thumbnail ఒకసారి set చేస్తే చాలు
+
+1. Bot‌కు image‌ను **Photo**గా పంపండి.
+2. ఆ photo‌కు replyగా `/setthumb` పంపండి. “Thumbnail saved!” రావాలి.
+3. File పంపి, దానికి replyగా `/rename NewName.ext` పంపండి.
+4. Save చేసిన thumbnail తర్వాత rename uploads‌కు ఆటోమేటిక్‌గా జత అవుతుంది.
+5. చూడటానికి `/viewthumb`; తొలగించడానికి `/delthumb`.
+
+ప్రతి user thumbnail వేరుగా save అవుతుంది; bot restart చేసినా ఉంటుంది.
+Telegram కొన్ని file types‌కు custom preview చూపించకపోవచ్చు. ఇది fileలో cover art‌ను మార్చదు.
+
+Update: పాత START.cmd‌ను Ctrl+Cతో ఆపండి. `.env`, `data` folder backup ఉంచి,
+కొత్త code‌ను పాత bot folderలో extract చేయండి. `.env`, `data` తొలగించవద్దు.
+INSTALL.cmd నడిపి కొత్త dependency install చేసిన తర్వాత START.cmd తెరవండి.
+ఇప్పుడు download/upload speed (MiB/s), ETA కనిపిస్తాయి. Internet upload speed,
+Telegram limits బట్టి మొత్తం సమయం మారుతుంది; guaranteed speed increase లేదు.

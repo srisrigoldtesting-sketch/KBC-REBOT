@@ -20,6 +20,7 @@ class Database:
             work_dir.mkdir(parents=True, exist_ok=True)
             self.local = sqlite3.connect(work_dir / "metadata.sqlite3")
             self.local.executescript("""
+                CREATE TABLE IF NOT EXISTS thumbnails (user_id INTEGER PRIMARY KEY, jpeg BLOB NOT NULL);
                 CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, created_at TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL,
                   filename TEXT NOT NULL, status TEXT NOT NULL, updated_at TEXT NOT NULL, error TEXT);
@@ -62,6 +63,27 @@ class Database:
             await asyncio.to_thread(self.db.jobs.update_one, {"_id": job_id}, {"$set": {"status": status, "updated_at": now, "error": error}})
         else:
             self.local.execute("UPDATE jobs SET status=?, updated_at=?, error=? WHERE id=?", (status, now, error, job_id))
+            self.local.commit()
+
+    async def set_thumbnail(self, user_id: int, jpeg: bytes):
+        if self.client is not None:
+            await asyncio.to_thread(self.db.thumbnails.update_one, {"_id": user_id}, {"$set": {"jpeg": jpeg}}, upsert=True)
+        else:
+            self.local.execute("INSERT INTO thumbnails VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET jpeg=excluded.jpeg", (user_id, jpeg))
+            self.local.commit()
+
+    async def get_thumbnail(self, user_id: int) -> bytes | None:
+        if self.client is not None:
+            row = await asyncio.to_thread(self.db.thumbnails.find_one, {"_id": user_id})
+            return bytes(row["jpeg"]) if row else None
+        row = self.local.execute("SELECT jpeg FROM thumbnails WHERE user_id=?", (user_id,)).fetchone()
+        return bytes(row[0]) if row else None
+
+    async def delete_thumbnail(self, user_id: int):
+        if self.client is not None:
+            await asyncio.to_thread(self.db.thumbnails.delete_one, {"_id": user_id})
+        else:
+            self.local.execute("DELETE FROM thumbnails WHERE user_id=?", (user_id,))
             self.local.commit()
 
     async def counts(self) -> tuple[int, int]:

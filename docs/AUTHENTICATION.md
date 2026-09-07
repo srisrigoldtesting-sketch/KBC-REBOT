@@ -57,3 +57,10 @@ Temporary files are removed on completion, failures and cooperative cancellation
 Free Telegram users can download files uploaded by Premium users, but cannot upload a new single 4GB file themselves. Forwarding an existing eligible file, or splitting a local original with SPLIT_LOCAL before uploading individual parts, preserves those limits. Joining creates a full file on local disk; it does not upload it back as a single Telegram file.
 
 Tests use synthetic credentials, fake Telegram clients and real local files/SQLite. They verify standard session generation, account-dependent limits, transfer routing, split/join integrity, validation, cancellation and cleanup. They do not establish that the user's real token, channel, network or a live 4GB transfer works. Run CHECK and a real file trial on the laptop.
+
+Saved thumbnails are keyed by the authenticated Telegram sender's numeric user
+ID. Thumbnail commands run only in private chats and apply the same optional
+channel-membership check as rename commands. Users cannot select another user's
+thumbnail ID. Only normalized JPEG bytes are stored in the thumbnails table or
+MongoDB collection; no new credentials or Telegram session tokens are introduced.
+The worker snapshots the sender's thumbnail at job start and freshly uploads it.

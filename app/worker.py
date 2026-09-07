@@ -4,9 +4,9 @@ import asyncio
 import logging
 import shutil
 import tempfile
-import time
 import uuid
 from contextlib import aclosing
+from io import BytesIO
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -14,6 +14,7 @@ from .clients import upload_limit_bytes
 from .config import DISK_RESERVE, FREE_UPLOAD_BYTES, MAX_FILE_BYTES, Settings, SetupError
 from .parts import split_file, write_manifest
 from .security import safe_filename
+from .progress import TransferProgress
 
 log = logging.getLogger(__name__)
 
@@ -135,23 +136,15 @@ class RenameWorker:
     async def _process(self, job):
         staging_ids = []
         status = None
-        last_update = 0.0
-        phase = "Downloading"
-
-        async def progress(current, total):
-            nonlocal last_update
-            if not status or time.monotonic() - last_update < 5:
-                return
-            last_update = time.monotonic()
-            try:
-                await self.bot.edit_message_text(job.user_id, status.id, f"{phase}: {current * 100 // max(total, 1)}% | {job.job_id[:8]}")
-            except Exception:
-                pass
+        reporter = None
 
         jobs_dir = self.settings.work_dir / "jobs"
         sent_parts = 0
         try:
             status = await self._notify(job.user_id, f"KBC REBOT: starting job {job.job_id[:8]}.")
+            reporter = TransferProgress(self.bot, job.user_id, status.id if status else None, job.job_id)
+            reporter.start()
+            thumbnail = await self.db.get_thumbnail(job.user_id)
             jobs_dir.mkdir(parents=True, exist_ok=True)
             split_needed = job.split_output and job.file_size > self.upload_limit
             required_space = job.file_size + DISK_RESERVE + (min(job.file_size, FREE_UPLOAD_BYTES) if split_needed else 0)
@@ -168,21 +161,29 @@ class RenameWorker:
                     else:
                         source = await telegram_call(self.bot.get_messages, job.source_chat_id, job.source_message_id)
                     await self._record(job, "downloading")
+                    reporter.begin("Downloading")
                     destination = Path(directory) / "source.bin"
                     downloaded = await telegram_call(self.transfer.download_media, source,
-                                                    file_name=str(destination), progress=progress)
+                                                    file_name=str(destination), progress=reporter.update)
                     if not downloaded or not destination.is_file() or destination.stat().st_size != job.file_size:
                         raise SetupError("Download was incomplete. Send the file again and retry.")
                     renamed = destination.with_name(job.target_name)
                     if renamed != destination:
                         destination.replace(renamed)
-                    phase = "Uploading"
-                    last_update = 0.0
                     await self._record(job, "uploading")
-                    async def deliver(path, caption):
+                    async def deliver(path, caption, phase="Uploading", use_thumbnail=True):
+                        reporter.begin(phase)
                         target_chat = self.settings.staging_chat_id if self.user is not None else job.user_id
-                        uploaded = await telegram_call(self.transfer.send_document, target_chat, str(path),
-                                                       file_name=path.name, caption=caption, force_document=True, progress=progress)
+                        thumb = BytesIO(thumbnail) if thumbnail and use_thumbnail else None
+                        if thumb is not None:
+                            thumb.name = "thumbnail.jpg"
+                        try:
+                            uploaded = await telegram_call(self.transfer.send_document, target_chat, str(path),
+                                                           file_name=path.name, caption=caption, force_document=True,
+                                                           thumb=thumb, progress=reporter.update)
+                        finally:
+                            if thumb is not None:
+                                thumb.close()
                         if not uploaded:
                             raise SetupError("Upload did not finish. Try again when the connection is stable.")
                         if self.user is not None:
@@ -194,24 +195,28 @@ class RenameWorker:
                         parts = []
                         async with aclosing(split_file(renamed, Path(directory), job.target_name, min(self.upload_limit, FREE_UPLOAD_BYTES))) as iterator:
                             async for part in iterator:
-                                phase = f"Uploading part {len(parts) + 1}"
-                                await deliver(Path(directory) / part.name, f"Part {len(parts) + 1} of {job.target_name}. Download all parts and the manifest before joining.")
+                                await deliver(Path(directory) / part.name, f"Part {len(parts) + 1} of {job.target_name}. Download all parts and the manifest before joining.", phase=f"Uploading part {len(parts) + 1}")
                                 sent_parts += 1
                                 parts.append(part)
                                 (Path(directory) / part.name).unlink()
                         if sum(part.size for part in parts) != job.file_size:
                             raise SetupError("The local source changed during splitting. Retry the complete job.")
                         manifest = write_manifest(Path(directory), job.target_name, parts)
-                        await deliver(manifest, "Download this manifest and every part into one folder, then run JOIN_PARTS.cmd. Parts cannot play/open individually.")
+                        await deliver(manifest, "Download this manifest and every part into one folder, then run JOIN_PARTS.cmd. Parts cannot play/open individually.", phase="Uploading manifest", use_thumbnail=False)
                     else:
                         await deliver(renamed, job.target_name)
+                    await reporter.stop()
                     await self._record(job, "done")
                     await self._notify(job.user_id, "All parts and manifest sent. Use JOIN_PARTS.cmd to restore the complete renamed file." if split_needed else "Renaming completed.")
         except asyncio.CancelledError:
+            if reporter:
+                await reporter.stop()
             await self._record(job, "interrupted" if self.stopping else "cancelled")
             await self._notify(job.user_id, "Job stopped. Any delivered parts are incomplete without the final manifest. Retry the command when ready.")
             raise
         except Exception as exc:
+            if reporter:
+                await reporter.stop()
             # Only an error class is stored or logged; never raw SDK/DB exceptions.
             await self._record(job, "failed", type(exc).__name__)
             detail = str(exc) if isinstance(exc, SetupError) else f"Transfer failed ({type(exc).__name__}). Try again or contact the admin."
@@ -222,6 +227,14 @@ class RenameWorker:
             if self.settings.log_channel_id:
                 await self._notify(self.settings.log_channel_id, f"Job {job.job_id[:8]} failed: {type(exc).__name__}")
         finally:
+            if reporter:
+                await reporter.stop()
+            if status:
+                try:
+                    async with asyncio.timeout(5):
+                        await self.bot.delete_messages(job.user_id, status.id)
+                except Exception:
+                    pass
             if staging_ids:
                 try:
                     async with asyncio.timeout(20):

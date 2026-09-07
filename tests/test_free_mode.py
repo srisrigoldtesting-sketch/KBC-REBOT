@@ -169,7 +169,7 @@ class FreeWorkerTests(unittest.IsolatedAsyncioTestCase):
                                    download_media=AsyncMock(side_effect=download), send_document=AsyncMock(side_effect=send),
                                    send_message=AsyncMock(return_value=SimpleNamespace(id=10)), edit_message_text=AsyncMock(),
                                    copy_message=AsyncMock(), delete_messages=AsyncMock())
-        self.db = SimpleNamespace(create_job=AsyncMock(), set_job_status=AsyncMock())
+        self.db = SimpleNamespace(create_job=AsyncMock(), set_job_status=AsyncMock(), get_thumbnail=AsyncMock(return_value=None))
         self.worker = RenameWorker(self.bot, None, self.db, self.settings)
 
     async def asyncTearDown(self):
@@ -190,7 +190,7 @@ class FreeWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.bot.get_messages.assert_awaited_once_with(1, 5)
         self.assertEqual(self.uploads, {"New.bin": self.payload})
         self.bot.copy_message.assert_not_awaited()
-        self.bot.delete_messages.assert_not_awaited()
+        self.bot.delete_messages.assert_awaited_once_with(1, 10)
         self.assertEqual(list((self.settings.work_dir / "jobs").iterdir()), [])
 
     async def test_4gb_input_requires_explicit_split_command(self):

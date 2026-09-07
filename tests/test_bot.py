@@ -122,7 +122,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.settings = Settings.from_values({**fixture_values(), "WORK_DIR": self.temp.name})
-        self.db = SimpleNamespace(create_job=AsyncMock(), set_job_status=AsyncMock())
+        self.db = SimpleNamespace(create_job=AsyncMock(), set_job_status=AsyncMock(), get_thumbnail=AsyncMock(return_value=None))
         self.staged = SimpleNamespace(id=11)
         self.premium_message = SimpleNamespace(id=11, owner="premium")
         self.bot = SimpleNamespace(copy_message=AsyncMock(return_value=self.staged), send_message=AsyncMock(return_value=SimpleNamespace(id=9)),
@@ -158,7 +158,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         await self.drain()
         self.premium.get_messages.assert_awaited_once_with(self.settings.staging_chat_id, 11)
         self.bot.copy_message.assert_any_await(job.user_id, self.settings.staging_chat_id, 22, caption=job.target_name)
-        self.bot.delete_messages.assert_awaited_once_with(self.settings.staging_chat_id, [11, 22])
+        self.bot.delete_messages.assert_any_await(self.settings.staging_chat_id, [11, 22])
         self.assertEqual(list((self.settings.work_dir / "jobs").iterdir()), [])
         self.db.set_job_status.assert_any_await(job.job_id, "done", None)
 
@@ -188,7 +188,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         with self.assertLogs("app.worker", level="WARNING"):
             await self.drain()
         self.premium.send_document.assert_not_awaited()
-        self.bot.delete_messages.assert_awaited_once_with(self.settings.staging_chat_id, [11])
+        self.bot.delete_messages.assert_any_await(self.settings.staging_chat_id, [11])
         self.assertFalse(self.paths[0].parent.exists())
 
     async def test_active_cancel_cleans_partial_file_and_next_job_succeeds(self):
