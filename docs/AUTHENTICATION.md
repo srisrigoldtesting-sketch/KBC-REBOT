@@ -64,3 +64,22 @@ channel-membership check as rename commands. Users cannot select another user's
 thumbnail ID. Only normalized JPEG bytes are stored in the thumbnails table or
 MongoDB collection; no new credentials or Telegram session tokens are introduced.
 The worker snapshots the sender's thumbnail at job start and freshly uploads it.
+
+## Trial and paid-access authorization
+
+Profiles persist a creation-based trial timestamp, premium expiry, input capacity
+and plain-text caption in SQLite or MongoDB. Trial initialization uses insert-only
+semantics; repeat commands and restarts cannot reset it. There is no automatic
+payment trust path. Only the configured admin's authenticated Telegram sender ID
+can activate/extend Premium, change capacities, export IDs, warn, broadcast or
+restart. Private-chat filters and an explicit sender-ID check protect the new
+admin handler. Buying bot Premium never grants administrator privileges.
+
+Renames check access/capacity at queue submission and job start. Preference setters
+check trial/Premium access and the optional channel-membership gate. Expired users
+can still view/remove their own preferences and read plan/help messages. Profile
+updates whitelist caption, capacity and premium expiry, excluding the trial start.
+The admin bypasses subscription limits but not the actual Telegram transfer limit.
+Restart cancels background broadcasts and the rename worker before disconnecting
+clients and closing the database; the service then recreates them with settings
+reloaded, under the existing single-instance lock.

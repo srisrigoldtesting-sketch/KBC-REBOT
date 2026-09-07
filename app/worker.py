@@ -15,6 +15,7 @@ from .config import DISK_RESERVE, FREE_UPLOAD_BYTES, MAX_FILE_BYTES, Settings, S
 from .parts import split_file, write_manifest
 from .security import safe_filename
 from .progress import TransferProgress
+from .plans import require_access, render_caption
 
 log = logging.getLogger(__name__)
 
@@ -75,6 +76,9 @@ class RenameWorker:
         safe_filename(job.target_name)
         if not 0 < job.file_size <= MAX_FILE_BYTES:
             raise SetupError("File must be non-empty and at most 4000 MiB.")
+        await require_access(self.db, job.user_id, self.settings.admin_id, job.file_size)
+        if self.stopping:
+            raise SetupError("The bot is restarting/stopping. Try again shortly.")
         if job.file_size > self.upload_limit and not job.split_output:
             raise SetupError(f"This account can upload one file up to {self.upload_limit // 1024**2} MiB. Reply /splitrename New Name.ext to receive larger files as parts, then join them locally.")
         if job.user_id in self.pending:
@@ -84,6 +88,9 @@ class RenameWorker:
         self.pending[job.user_id] = job
         try:
             await self.db.create_job(job.job_id, job.user_id, job.target_name)
+            if self.stopping:
+                await self._record(job, "interrupted")
+                raise SetupError("The bot is restarting/stopping. Try again shortly.")
             self.queue.put_nowait(job)
         except BaseException:
             self.pending.pop(job.user_id, None)
@@ -144,6 +151,7 @@ class RenameWorker:
             status = await self._notify(job.user_id, f"KBC REBOT: starting job {job.job_id[:8]}.")
             reporter = TransferProgress(self.bot, job.user_id, status.id if status else None, job.job_id)
             reporter.start()
+            profile = await require_access(self.db, job.user_id, self.settings.admin_id, job.file_size)
             thumbnail = await self.db.get_thumbnail(job.user_id)
             jobs_dir.mkdir(parents=True, exist_ok=True)
             split_needed = job.split_output and job.file_size > self.upload_limit
@@ -173,6 +181,11 @@ class RenameWorker:
                     await self._record(job, "uploading")
                     async def deliver(path, caption, phase="Uploading", use_thumbnail=True):
                         reporter.begin(phase)
+                        if use_thumbnail:
+                            custom = render_caption(profile["caption"], path.name, path.stat().st_size)
+                            suffix = "\n" + caption if split_needed else ""
+                            budget = max(0, 1024 - len(suffix.encode("utf-16-le")) // 2)
+                            caption = custom.encode("utf-16-le")[:budget * 2].decode("utf-16-le", errors="ignore") + suffix
                         target_chat = self.settings.staging_chat_id if self.user is not None else job.user_id
                         thumb = BytesIO(thumbnail) if thumbnail and use_thumbnail else None
                         if thumb is not None:

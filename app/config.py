@@ -71,6 +71,8 @@ class Settings:
     start_pic: str | None = None
     max_concurrent_jobs: int = 1
     transfer_mode: str = "bot"
+    plan_price_text: str = "Premium prices are not configured. Contact the admin for a quote and activation."
+    donation_text: str = "To support KBC REBOT, contact the admin. No donation destination is configured."
 
     @classmethod
     def from_values(cls, source: Mapping[str, str], root: Path = ROOT) -> "Settings":
@@ -110,13 +112,18 @@ class Settings:
         force: str | int | None = values.get("FORCE_SUB_CHANNEL") or None
         if force and str(force).lstrip("-").isdigit():
             force = int(force)
+        for key in ("PLAN_PRICE_TEXT", "DONATION_TEXT"):
+            if len(values.get(key, "")) > 1500:
+                raise SetupError(f"{key} must be at most 1500 characters.")
         work_dir = Path(values.get("WORK_DIR") or "data").expanduser()
         if not work_dir.is_absolute():
             work_dir = root / work_dir
         return cls(api_id=api_id, api_hash=api_hash, bot_token=token, admin_id=admin,
                    string_session=session, staging_chat_id=staging, work_dir=work_dir.resolve(),
                    force_sub_channel=force, log_channel_id=log, database_url=database_url,
-                   database_name=database_name, start_pic=values.get("START_PIC") or None, transfer_mode=mode)
+                   database_name=database_name, start_pic=values.get("START_PIC") or None, transfer_mode=mode,
+                   plan_price_text=values.get("PLAN_PRICE_TEXT") or cls.plan_price_text,
+                   donation_text=values.get("DONATION_TEXT") or cls.donation_text)
 
     @classmethod
     def load(cls) -> "Settings":

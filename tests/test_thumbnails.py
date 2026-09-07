@@ -73,7 +73,7 @@ class ThumbnailTests(unittest.IsolatedAsyncioTestCase):
                 return function
             return attach
         bot = SimpleNamespace(on_message=register, download_media=AsyncMock(return_value=io.BytesIO(photo_bytes())))
-        db = SimpleNamespace(set_thumbnail=AsyncMock(), get_thumbnail=AsyncMock(return_value=b"saved"), delete_thumbnail=AsyncMock())
+        db = SimpleNamespace(get_profile=AsyncMock(return_value={"trial_started": 4102444800, "premium_until": 0, "capacity_mib": 2000, "caption": None}), set_thumbnail=AsyncMock(), get_thumbnail=AsyncMock(return_value=b"saved"), delete_thumbnail=AsyncMock())
         register_handlers(bot, db, None, SimpleNamespace(admin_id=123, force_sub_channel=None))
         source = SimpleNamespace(photo=SimpleNamespace(file_size=len(photo_bytes())))
         message = SimpleNamespace(from_user=SimpleNamespace(id=42), text="/setthumb", photo=None,

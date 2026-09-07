@@ -116,3 +116,67 @@ To update an existing Windows installation: stop START.cmd with Ctrl+C, back up
 keep those private settings/data, run INSTALL.cmd to install the added Pillow
 dependency, then run START.cmd. Do not run two copies at once. For a custom
 WORK_DIR, preserve that directory instead of the default data folder.
+
+## Six-hour trial, Premium and admin commands
+
+This edition starts a **one-time six-hour trial** on the first `/start`, `/myplan`,
+caption/thumbnail setup or valid rename access check. Trial users can rename
+inputs up to **2000 MiB**. After expiry, new renames and new thumbnail/caption
+settings require admin-activated bot Premium. Viewing/removing saved preferences,
+help, status, cancel, ping, upgrade and donate remain available. The administrator
+is exempt from the trial. Existing users receive their trial on first qualifying
+use after this update. Timers use elapsed wall-clock hours, including laptop
+offline time; restarting the bot never resets them. Preserve the data database.
+
+Access and file capacity are checked at submission and again when a queued job
+starts. Jobs already transferring may finish after their plan expires. Downgrading
+or resetting a user's capacity requests cancellation of that user's existing job.
+
+**Bot Premium is not Telegram Premium.** `/addpremium` grants access to this bot;
+it cannot raise the sending Telegram account's upload limit. With bot mode, inputs
+above 2000 MiB still require `/splitrename`, and are returned in parts. A permitted
+4000 MiB input does not imply a single 4000 MiB upload is possible.
+
+| User command | Usage |
+| --- | --- |
+| `/start` | Start/check the bot and see help |
+| `/viewthumb`, `/delthumb` | View/remove your saved thumbnail |
+| `/setthumb` | Reply to a photo to save your thumbnail |
+| `/set_caption Your caption` | Save caption; optional `{filename}` and `{filesize}` placeholders |
+| `/see_caption`, `/del_caption` | View/remove your caption |
+| `/ping` | Message round-trip latency, not file transfer speed |
+| `/myplan` | Your user ID, plan, capacity and expiry in UTC |
+| `/upgrade` | Six-hour trial details and the operator's configured price list |
+| `/donate` | Operator's configured support instructions |
+
+Caption templates are plain text, limited to 700 UTF-16 characters (emoji may
+count as two), with only literal placeholder substitution. They are applied to
+future uploaded files and parts. Split instructions remain appended; the manifest
+keeps its join instructions. Captions do not alter file contents.
+
+Only the configured `ADMIN_ID` can use these commands, in a private bot chat:
+
+| Admin command | Usage |
+| --- | --- |
+| `/users` | Count registered users |
+| `/allids` | Download the registered user ID list |
+| `/broadcast` | Reply to a message/photo to copy it to registered users; one broadcast at a time, with a final sent/failed summary |
+| `/warn USER_ID Message` | Send text to one registered user; or reply to a message with `/warn USER_ID` to copy it |
+| `/ceasepower USER_ID [MIB]` | Reduce input capacity; omit MIB to disable renaming. Cannot increase capacity |
+| `/resetpower USER_ID` | Restore capacity to 2000 MiB; **does not reset/extend trial or Premium expiry** |
+| `/addpremium USER_ID DAYS [MIB]` | Activate or extend bot Premium by DAYS; optional capacity defaults to 4000 MiB. DAYS: 1–3650, MIB: 1–4000 |
+| `/restart` | Stop active/queued jobs and broadcasts, clean up, reload settings and reconnect the bot. Saved user data remains |
+
+For example, `/addpremium 123456789 30 4000` grants that registered user 30 days
+of bot access with a 4000 MiB input capacity. Repeat grants extend from the later
+of the existing expiry and now. Users must first send `/start`; admins cannot
+accidentally enroll an arbitrary unknown user ID. Premium users gain no admin
+privileges. Broadcasts are manually initiated by the admin, rate-limited and
+report blocked/failed recipients. Restarted broadcasts are not automatically resent.
+
+Stop the bot and open CONFIGURE.cmd to enter **Premium price list** (`PLAN_PRICE_TEXT`)
+and **Donation instructions** (`DONATION_TEXT`). Both are optional public text;
+never put passwords or bot tokens there. No prices or payment destination are
+invented. Until configured, `/upgrade` and `/donate` direct users to the admin.
+This version does not collect or verify payments automatically: admin activation
+is explicit, and messages/payment screenshots do not automatically grant access.

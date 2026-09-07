@@ -169,7 +169,7 @@ class FreeWorkerTests(unittest.IsolatedAsyncioTestCase):
                                    download_media=AsyncMock(side_effect=download), send_document=AsyncMock(side_effect=send),
                                    send_message=AsyncMock(return_value=SimpleNamespace(id=10)), edit_message_text=AsyncMock(),
                                    copy_message=AsyncMock(), delete_messages=AsyncMock())
-        self.db = SimpleNamespace(create_job=AsyncMock(), set_job_status=AsyncMock(), get_thumbnail=AsyncMock(return_value=None))
+        self.db = SimpleNamespace(create_job=AsyncMock(), set_job_status=AsyncMock(), get_thumbnail=AsyncMock(return_value=None), get_profile=AsyncMock(return_value={"trial_started": 4102444800, "premium_until": 4102444800, "capacity_mib": 4000, "caption": None}))
         self.worker = RenameWorker(self.bot, None, self.db, self.settings)
 
     async def asyncTearDown(self):

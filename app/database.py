@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,6 +21,8 @@ class Database:
             work_dir.mkdir(parents=True, exist_ok=True)
             self.local = sqlite3.connect(work_dir / "metadata.sqlite3")
             self.local.executescript("""
+                CREATE TABLE IF NOT EXISTS profiles (id INTEGER PRIMARY KEY, trial_started INTEGER NOT NULL,
+                  premium_until INTEGER NOT NULL DEFAULT 0, capacity_mib INTEGER NOT NULL DEFAULT 2000, caption TEXT);
                 CREATE TABLE IF NOT EXISTS thumbnails (user_id INTEGER PRIMARY KEY, jpeg BLOB NOT NULL);
                 CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, created_at TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL,
@@ -48,6 +51,57 @@ class Database:
         else:
             self.local.execute("INSERT OR IGNORE INTO users VALUES (?,?)", (user_id, now))
             self.local.commit()
+
+    async def get_profile(self, user_id: int):
+        await self.register_user(user_id)
+        now = int(time.time())
+        if self.client is not None:
+            from pymongo import ReturnDocument
+            return await asyncio.to_thread(self.db.profiles.find_one_and_update, {"_id": user_id},
+                {"$setOnInsert": {"trial_started": now, "premium_until": 0, "capacity_mib": 2000, "caption": None}},
+                upsert=True, return_document=ReturnDocument.AFTER)
+        self.local.execute("INSERT OR IGNORE INTO profiles(id,trial_started) VALUES (?,?)", (user_id, now))
+        self.local.commit()
+        row = self.local.execute("SELECT trial_started,premium_until,capacity_mib,caption FROM profiles WHERE id=?", (user_id,)).fetchone()
+        return dict(zip(("trial_started", "premium_until", "capacity_mib", "caption"), row))
+
+    async def update_profile(self, user_id: int, **fields):
+        allowed = {"premium_until", "capacity_mib", "caption"}
+        if not fields or not set(fields) <= allowed:
+            raise ValueError("Unsupported profile update")
+        await self.get_profile(user_id)
+        if self.client is not None:
+            await asyncio.to_thread(self.db.profiles.update_one, {"_id": user_id}, {"$set": fields})
+        else:
+            assignments = ",".join(key + "=?" for key in fields)
+            self.local.execute(f"UPDATE profiles SET {assignments} WHERE id=?", (*fields.values(), user_id))
+            self.local.commit()
+
+    async def has_user(self, user_id):
+        if self.client is not None:
+            return await asyncio.to_thread(self.db.users.find_one, {"_id": user_id}) is not None
+        return self.local.execute("SELECT 1 FROM users WHERE id=?", (user_id,)).fetchone() is not None
+
+    async def iter_user_ids(self):
+        # Stable upper bound prevents a long broadcast from chasing new registrations.
+        if self.client is not None:
+            last = await asyncio.to_thread(self.db.users.find_one, {}, sort=[("_id", -1)])
+            upper = last["_id"] if last else 0
+        else:
+            upper = self.local.execute("SELECT COALESCE(MAX(id),0) FROM users").fetchone()[0]
+        after = 0
+        while after < upper:
+            if self.client is not None:
+                def page():
+                    return [row["_id"] for row in self.db.users.find({"_id": {"$gt": after, "$lte": upper}}, {"_id": 1}).sort("_id", 1).limit(500)]
+                ids = await asyncio.to_thread(page)
+            else:
+                ids = [row[0] for row in self.local.execute("SELECT id FROM users WHERE id>? AND id<=? ORDER BY id LIMIT 500", (after, upper))]
+            if not ids:
+                break
+            for user_id in ids:
+                yield user_id
+            after = ids[-1]
 
     async def create_job(self, job_id: str, user_id: int, filename: str):
         now = datetime.now(timezone.utc).isoformat()

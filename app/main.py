@@ -37,7 +37,7 @@ async def run(settings):
     from .handlers import register_handlers
     from .worker import RenameWorker
     bot, user = build_clients(settings)
-    db = worker = None
+    db = worker = control = None
     try:
         db = Database(settings.database_url, settings.database_name, settings.work_dir)
         await db.ping()
@@ -55,18 +55,27 @@ async def run(settings):
             await connect_client(bot, settings.bot_token)
             await verify_telegram(bot, user, settings)
         worker = RenameWorker(bot, user, db, settings)
-        register_handlers(bot, db, worker, settings)
+        control = register_handlers(bot, db, worker, settings)
         await worker.start()
         print(f"KBC REBOT is running: @{bot.me.username}. Keep this window open. Ctrl+C stops it.", flush=True)
         print(f"Single-file upload limit: {worker.upload_limit // 1024**2} MiB. /splitrename returns larger files as parts.", flush=True)
-        await asyncio.Event().wait()
+        await control.restart.wait()
+        return True
     finally:
+        if control:
+            await control.close()
         if worker:
             await worker.stop()
         await disconnect_client(bot)
         await disconnect_client(user)
         if db:
             await db.close()
+
+
+async def serve(settings):
+    # Recreate Telegram clients/worker after cleanup; no shell process or duplicate bot.
+    while await run(settings):
+        settings = Settings.load()
 
 
 def main():
@@ -78,7 +87,7 @@ def main():
     try:
         settings = Settings.load()
         with RunLock(ROOT / ".kbc.lock"), KeepAwake():
-            asyncio.run(run(settings))
+            asyncio.run(serve(settings))
     except KeyboardInterrupt:
         print("KBC REBOT stopped.")
         return 0

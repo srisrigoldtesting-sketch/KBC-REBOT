@@ -14,6 +14,7 @@ FIELDS = [
     ("STRING_SESSION", "User session (user mode only)", True), ("STAGING_CHAT_ID", "Staging channel (user mode only)", False),
     ("FORCE_SUB_CHANNEL", "Join channel (optional)", False), ("LOG_CHANNEL_ID", "Log channel ID (optional)", False),
     ("DATABASE_URL", "MongoDB URI (blank = local)", True), ("DATABASE_NAME", "Database name", False),
+    ("PLAN_PRICE_TEXT", "Premium price list (optional)", False), ("DONATION_TEXT", "Donation instructions (optional)", False),
     ("START_PIC", "Welcome picture URL (optional)", False), ("WORK_DIR", "Local data folder", False),
 ]
 

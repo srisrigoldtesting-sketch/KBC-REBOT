@@ -122,7 +122,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.settings = Settings.from_values({**fixture_values(), "WORK_DIR": self.temp.name})
-        self.db = SimpleNamespace(create_job=AsyncMock(), set_job_status=AsyncMock(), get_thumbnail=AsyncMock(return_value=None))
+        self.db = SimpleNamespace(create_job=AsyncMock(), set_job_status=AsyncMock(), get_thumbnail=AsyncMock(return_value=None), get_profile=AsyncMock(return_value={"trial_started": 4102444800, "premium_until": 4102444800, "capacity_mib": 4000, "caption": None}))
         self.staged = SimpleNamespace(id=11)
         self.premium_message = SimpleNamespace(id=11, owner="premium")
         self.bot = SimpleNamespace(copy_message=AsyncMock(return_value=self.staged), send_message=AsyncMock(return_value=SimpleNamespace(id=9)),

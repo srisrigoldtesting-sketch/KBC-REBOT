@@ -46,3 +46,23 @@ Update: పాత START.cmd‌ను Ctrl+Cతో ఆపండి. `.env`, `data
 INSTALL.cmd నడిపి కొత్త dependency install చేసిన తర్వాత START.cmd తెరవండి.
 ఇప్పుడు download/upload speed (MiB/s), ETA కనిపిస్తాయి. Internet upload speed,
 Telegram limits బట్టి మొత్తం సమయం మారుతుంది; guaranteed speed increase లేదు.
+
+## కొత్త 6 గంటల trial + Premium features
+
+- User మొదట `/start` పంపినప్పటి నుంచి 6 గంటలు free; input limit 2000 MiB.
+- Trial ముగిశాక కొత్త rename కోసం admin Premium ఇవ్వాలి. Restart చేస్తే trial reset కాదు.
+- `/myplan`లో user ID, capacity, expiry కనిపిస్తాయి.
+- Admin ఉదాహరణ: `/addpremium 123456789 30 4000` — ఆ user‌కు 30 రోజులు, 4000 MiB input limit.
+- `/ceasepower USER_ID` renaming disable చేస్తుంది; `/ceasepower USER_ID 500` capacity తగ్గిస్తుంది.
+- `/resetpower USER_ID` capacity మాత్రమే 2000 MiBకి మారుస్తుంది; trial/premium expiry పెరగదు.
+- `/users` మొత్తం users; `/allids` వారి IDs file.
+- ఒక message‌కు replyగా `/broadcast` — registered users‌కు పంపుతుంది.
+- `/warn USER_ID మీ సందేశం` — ఒక user‌కు message.
+- `/restart` — jobs/broadcast ఆపి bot reconnect చేస్తుంది; saved data ఉంటుంది.
+- Caption ఉదాహరణ: `/set_caption KBC REBOT | {filename} | {filesize}`.
+- `/see_caption`, `/del_caption`, `/ping`, `/upgrade`, `/donate` కూడా ఉన్నాయి.
+
+Prices: bot ఆపి CONFIGURE.cmdలో Premium price list, Donation instructions నింపండి.
+Automatic payment verification లేదు; admin `/addpremium`తో access ఇవ్వాలి.
+Bot Premium ఇచ్చినా Telegram Premium వచ్చినట్లు కాదు. Bot modeలో 2000 MiB కంటే
+పెద్ద permitted inputs కోసం `/splitrename` వాడాలి; output parts‌గా వస్తుంది.

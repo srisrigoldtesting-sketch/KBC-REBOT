@@ -5,21 +5,34 @@ from io import BytesIO
 from pathlib import PurePosixPath
 
 from .config import SetupError
+from .plans import require_access
+from .features import BotControl, register_features
 from .security import is_subscribed, safe_filename
 from .worker import RenameJob
 from .thumbnails import MAX_PHOTO_BYTES, normalize_thumbnail
 
 
-def register_handlers(bot, db, worker, settings):
+def register_handlers(bot, db, worker, settings, control=None):
+    control = control or BotControl()
     from pyrogram import filters
 
     @bot.on_message(filters.private & filters.command(["start", "help"]))
     async def start_handler(_, message):
+        if not message.from_user:
+            return
+        try:
+            await db.get_profile(message.from_user.id)
+        except Exception:
+            await message.reply_text("Database unavailable. Ask the admin to run CHECK.cmd.")
+            return
         text = ("KBC REBOT — file renamer\n\n"
                 "Send a document/video/audio, then reply to it with:\n/rename New File Name.ext\n\n"
                 "/splitrename New File Name.ext — larger inputs returned as parts, up to 4000 MiB total.\n"
                 "/setthumb — reply to a photo to save your thumbnail\n/viewthumb — show it\n/delthumb — remove it\n"
+                "/set_caption, /see_caption, /del_caption — saved captions\n"
+                "/myplan — your access\n/upgrade — plans\n/donate — support\n/ping — response time\n"
                 "/status — queue\n/cancel — stop your job\n"
+                "Free trial: 6 hours from first use, 2000 MiB inputs. After expiry contact the admin for Premium.\n"
                 f"One job per user. Single-file limit: {worker.upload_limit // 1024**2} MiB. Files pass through the operator's laptop. "
                 "Split parts need JOIN_PARTS.cmd before the complete file can be opened.")
         if settings.start_pic:
@@ -80,6 +93,7 @@ def register_handlers(bot, db, worker, settings):
                     photo.name = "thumbnail.jpg"
                     await message.reply_photo(photo, caption="Your saved thumbnail.")
             else:
+                await require_access(db, user_id, settings.admin_id)
                 source = message if message.photo else message.reply_to_message
                 if not source or not source.photo:
                     await message.reply_text("Send an image as a PHOTO, then reply to that photo with /setthumb.")
@@ -119,3 +133,6 @@ def register_handlers(bot, db, worker, settings):
             await message.reply_text(f"Users: {users}\nJobs recorded: {jobs}\nWaiting: {worker.queue.qsize()}")
         except Exception:
             await message.reply_text("Database unavailable. Run CHECK.cmd after stopping the bot.")
+
+    register_features(bot, db, worker, settings, control)
+    return control
